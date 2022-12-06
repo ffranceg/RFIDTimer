@@ -1,0 +1,11 @@
+﻿<Application x:Class="RFIDTimer.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:RFIDTimer"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <FontFamily x:Key="Digital">pack://application:,,,/Fonts/#DS-Digital</FontFamily>
+        <FontFamily x:Key="LightLED">pack://application:,,,/Fonts/#Light LED Board-7</FontFamily>
+        <FontFamily x:Key="MS-LED">pack://application:,,,/Fonts/#LED</FontFamily>
+    </Application.Resources>
+</Application>
