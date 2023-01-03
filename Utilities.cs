@@ -9,11 +9,43 @@ using System.Threading.Tasks;
 using System.Windows.Data;
 using System.Windows;
 using System.IO;
+using System.Data;
+using System.Reflection;
 
 namespace RFIDTimer
 {
     public static class Utilities
     {
+
+        /// <summary>
+        /// Convert DataTable to List
+        /// </summary>
+        /// <param name="dt"></param>
+        /// <param name="DataModel"></param>
+        /// <returns>List<DataModel></returns>
+        public static List<T> ConvertDataTabletoList<T>(DataTable dt)
+        {
+            List<T> data = new List<T>();
+            foreach (DataRow row in dt.Rows)
+            {
+                T item = GetItem<T>(row);
+                data.Add(item);
+            }
+            return data;
+        }
+        private static T GetItem<T>(DataRow dr)
+        {
+            Type temp = typeof(T);
+            T obj = Activator.CreateInstance<T>();
+            List<PropertyInfo> props = temp.GetProperties().ToList();
+            foreach (DataColumn column in dr.Table.Columns)
+            {
+                var pro = props.FirstOrDefault(x => x.Name == column.ColumnName);
+                if (pro != null) pro.SetValue(obj, dr[column.ColumnName].GetType() == typeof(DBNull) ? null : dr[column.ColumnName], null);
+            }
+            return obj;
+        }
+
         /// <summary>
         /// Convert ascii value to hex value
         /// </summary>

@@ -6,17 +6,25 @@
         xmlns:local="clr-namespace:RFIDTimer"
         xmlns:TagResults="clr-namespace:RFIDTimer"
         xmlns:Properties="clr-namespace:RFIDTimer.Properties" 
-        xmlns:ports="clr-namespace:System.IO.Ports;assembly=System"
-        x:Class="RFIDTimer.MainWindow"
+        xmlns:ports="clr-namespace:System.IO.Ports;assembly=System" d:DataContext="{d:DesignInstance Type=local:EventRunnerModel}"
+    x:Class="RFIDTimer.MainWindow"
         WindowStartupLocation="CenterScreen" 
         Closing="Window_Closing" 
         mc:Ignorable="d" 
         d:DesignHeight="800" 
         d:DesignWidth="1280"
         d:MinWidth="1024"
-        DataContext="{Binding ElementName=tcTagResults}" 
-        WindowState="Maximized">
+        Loaded="Window_Loaded">
     <Window.Resources>
+        <ResourceDictionary>
+            <Style x:Key="FocusColor" TargetType="{x:Type TextBox}">
+                <Style.Triggers>
+                    <Trigger Property="IsFocused" Value="True">
+                        <Setter Property="Background" Value="#FFbef070" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+        </ResourceDictionary>
     </Window.Resources>
     <DockPanel LastChildFill="True" Margin="0,0,0,0">
         <!-- Status Bar Bottom Start -->
@@ -83,7 +91,7 @@
                 </LinearGradientBrush>
             </Grid.Background>
             <ComboBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Margin="3" ToolTip="Enter reader com port" Name="cmbReaderAddr" ToolTipService.ShowOnDisabled="True" Text="" SelectedIndex="0" IsEditable="True" Visibility="Visible" Width="200" HorizontalAlignment="Left"/>
-            <Button Margin="220,3,3,3" DockPanel.Dock="Right" HorizontalAlignment="Left" ToolTipService.ShowOnDisabled="True" Visibility="Visible" ToolTip="Refresh host name list" Content="Refresh" Name="btnRefreshReadersList" Width="70" Click="btnRefreshReadersList_Click"></Button>
+            <Button Margin="220,3,3,3" DockPanel.Dock="Right" HorizontalAlignment="Left" ToolTipService.ShowOnDisabled="True" Visibility="Visible" ToolTip="Refresh com name list" Content="Refresh" Name="btnRefreshReadersList" Width="70" Click="btnRefreshReadersList_Click"></Button>
             <Image Grid.Column="0" Margin="3,3,10,3" x:Name="imageLogo" Source="/Images/logominisys.png" HorizontalAlignment="Right"/>
         </Grid>
 
@@ -114,7 +122,7 @@
             <Button Grid.Column="2" Grid.Row="0" x:Name="btnResetRace" Background="{x:Null}" BorderBrush="{x:Null}" Foreground="{x:Null}" Click="btnResetRace_Click">
                 <Image Source="/Icons/reset.png" Width="50" Margin="1,1,1,1" />
             </Button>
-            
+
             <StackPanel Grid.Column="4" Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button Margin="3" Background="Transparent" ToolTipService.ShowOnDisabled="True" IsEnabled="False" ToolTip="Clear Tag Reads" HorizontalAlignment="Left" x:Name="btnClearTagReads" VerticalAlignment="Top" Click="btnClearReads_Click" >
                     <Image x:Name="toolbarClearTagReadsImage" Source="/Icons/Clear.png" Width="32" />
@@ -160,47 +168,462 @@
             <!-- Row -->
             <Label Grid.Column="1" Grid.Row="1" x:Name="lblStartRace" Content="Start Race" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-5,0,0"/>
             <Label Grid.Column="2" Grid.Row="1" x:Name="lblResetRace" Content="Reset Time" HorizontalAlignment="Center" Margin="0,-5,0,0" VerticalAlignment="Center"/>
-            <Label Grid.Column="5" Grid.Row="1" x:Name="lblRaceTimelbl" Content="Race Time hh:mm;ss.dc" HorizontalAlignment="Center" Margin="0,-5,0,0" VerticalAlignment="Center"/>
+            <Label Grid.Column="5" Grid.Row="1" x:Name="lblRaceTimelbl" Content="Race Time hh:mm;ss.dc" HorizontalAlignment="Center" Margin="0,-5,0,0" VerticalAlignment="Center" FontWeight="Bold"/>
             <Label Grid.Column="6" Grid.Row="1" x:Name="lblPowerUri" Content="Power in dBm" ToolTip="Power Reader URI" VerticalAlignment="Center" Margin="0,-5,0,0" HorizontalAlignment="Center" FontWeight="Bold" />
             <Label Grid.Column="7" Grid.Row="1" x:Name="lblReaderUri" Content="N/D" ToolTip="Reader URI" VerticalAlignment="Center" Margin="0,-5,0,0" HorizontalAlignment="Center" FontWeight="Bold" />
             <Label Grid.Column="8" Grid.Row="1" x:Name="lblbtnRead" Content="Switch on RFID" HorizontalAlignment="Center" Margin="0,-5,0,0" VerticalAlignment="Center"/>
             <Label Grid.Column="9" Grid.Row="1" x:Name="lbTemperature" Content="Temperature" HorizontalAlignment="Center" Margin="0,-5,0,0" VerticalAlignment="Center"/>
         </Grid>
-
-        <Separator DockPanel.Dock="top" Height="15" Background="{x:Null}" Foreground="{x:Null}"></Separator>
-
+        <Separator DockPanel.Dock="top" Height="5" Background="{x:Null}" Foreground="{x:Null}"></Separator>
+        <!-- Pannello Selezione Gara -->
         <Grid DockPanel.Dock="Top">
-            <DataGrid IsReadOnly="True" VirtualizingStackPanel.IsVirtualizing="True" VirtualizingStackPanel.VirtualizationMode="Recycling"  ItemsSource="{Binding}" FontFamily="Arial" FontSize="12"
-                  Background="White" HorizontalScrollBarVisibility="Auto" AutoGenerateColumns="False"  Name="dgTagResults" IsTextSearchEnabled="True" CanUserResizeColumns="True"  CanUserSortColumns="True" CanUserReorderColumns="False" 
-                  CanUserResizeRows="False" LostFocus="dgTagResults_LostFocus" LoadingRow="dgTagResults_LoadingRow">
-                <DataGrid.Columns>
-                    <DataGridTextColumn x:Name="serialNoColumn" Header="#" />
-                    <DataGridTextColumn x:Name="epcColumn" Header="EPC"/>
-                    <DataGridTextColumn x:Name="epcColumnInAscii" FontFamily="Consolas" Visibility="Collapsed" />
-                    <DataGridTextColumn x:Name="epcColumnInReverseBase36" Visibility="Collapsed" />
-                    <DataGridTextColumn x:Name="dataColumn" Visibility="Collapsed" />
-                    <DataGridTextColumn x:Name="dataColumnInAscii" FontFamily="Consolas" Visibility="Collapsed" />
-                    <DataGridTextColumn x:Name="dataSecureColumn" Visibility="Collapsed" />
-                    <DataGridTextColumn x:Name="firstStampColumn" Binding="{Binding Mode=OneWay}"/>
-                    <DataGridTextColumn x:Name="timeStampColumn" Binding="{Binding Mode=OneWay}"/>
-                    <DataGridTextColumn x:Name="rssiColumn" Header="RSSI (dBm)"/>
-                    <DataGridTextColumn x:Name="readCountColumn" Header="Read Count"/>
-                    <DataGridTextColumn x:Name="tagTypeColumn" Visibility="Collapsed" />
-                    <DataGridTextColumn x:Name="antennaColumn" Visibility="Collapsed"/>
-                    <DataGridTextColumn x:Name="protocolColumn" Visibility="Collapsed"/>
-                    <DataGridTextColumn x:Name="frequencyColumn" Visibility="Collapsed"/>
-                    <DataGridTextColumn x:Name="phaseColumn" Visibility="Collapsed"/>
-                    <DataGridTextColumn x:Name="GPIOColumn" Visibility="Collapsed" />
-                </DataGrid.Columns>
-            </DataGrid>
-            <TextBox Visibility="Collapsed" Name="txtSelectedCell" Width="1"></TextBox>
+            <Border BorderBrush="Black" BorderThickness="1" CornerRadius="7" Margin="10,4,10,4" Height="Auto">
+                <Border.Background>
+                    <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                        <GradientStop Color="#FFFFFF" Offset="0"/>
+                        <GradientStop Color="#FFD2F310" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="47" />
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="4,0,4,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="0.1*" />
+                            <ColumnDefinition Width="0.5*" />
+                            <ColumnDefinition Width="1*" />
+                            <ColumnDefinition Width="1.8*" />
+                            <ColumnDefinition Width="0.3*" />
+                            <ColumnDefinition Width="0.8*" />
+                            <ColumnDefinition Width="0.3*" />
+                            <ColumnDefinition Width="0.1*" />
+                        </Grid.ColumnDefinitions>
+                        <Label Grid.Column="1" HorizontalAlignment="Center" Margin="0,-3,0,0">Select Date</Label>
+                        <DatePicker Grid.Column="1" Margin="2,2,2,4" VerticalAlignment="Bottom"/>
+                        <Label Grid.Column="2" HorizontalAlignment="Center" Margin="0,-3,0,0">Select Race</Label>
+                        <ComboBox Grid.Column="2" Margin="2,2,2,4" ToolTip="Select Event" x:Name="cmbRaceSelect" SelectedIndex="0" DisplayMemberPath="DescEvent" SelectedValuePath="IDEvent" SelectionChanged="cmbRaceSelect_SelectionChanged" VerticalAlignment="Bottom"/>
+                        <Label Grid.Column="3" HorizontalAlignment="Center" Margin="0,-3,0,0">Selected Race</Label>
+                        <TextBlock Grid.Column="3" Margin="2,2,2,4" x:Name="tbxeventDesc" Width="Auto" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Bottom" Height="30"/>
+                        <Label Grid.Column="4" HorizontalAlignment="Center" Margin="0,-3,0,0">Lenght</Label>
+                        <TextBlock Grid.Column="4" Margin="2,2,2,4" x:Name="tbxeventLenght"  Width="50" VerticalAlignment="Bottom"/>
+                        <Label Grid.Column="5" HorizontalAlignment="Center" Margin="0,-3,0,0">Type</Label>
+                        <TextBlock Grid.Column="5" Margin="2,2,2,4" x:Name="tbxEventType"  Width="250" VerticalAlignment="Bottom"/>
+                        <Label Grid.Column="6" HorizontalAlignment="Center" Margin="0,-3,0,0">Short Circ</Label>
+                        <CheckBox Grid.Column="6" Margin="2,2,2,4" x:Name="tbxEventShort" HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
+                    </Grid>
+                </Grid>
+            </Border>
         </Grid>
 
-
-        <StackPanel DockPanel.Dock="Bottom" Height="4" Grid.Row="0" Orientation="Horizontal">
-            <StackPanel.Background>
-                #0000EC
-            </StackPanel.Background>
-        </StackPanel>
+        <Separator DockPanel.Dock="top" Height="3" Background="{x:Null}" Foreground="{x:Null}"></Separator>
+        <TabControl>
+            <TabItem Header="Events" Height="20" VerticalAlignment="Bottom">
+                <Grid Background="#FFE5E5E5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="1*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Border Background="Gold" BorderBrush="Black" BorderThickness="1" CornerRadius="7" Margin="10,4,10,4">
+                        <Grid Grid.Row="0" Margin="4,8,4,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="0.1*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                                <ColumnDefinition Width="0.8*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                                <ColumnDefinition Width="0.8*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Margin="2,2,2,2" HorizontalAlignment="Center" VerticalAlignment="Top" Text="ID" />
+                            <TextBlock Grid.Column="0" x:Name="PnlIDEvent" Margin="2,20,2,2" HorizontalAlignment="Center" />
+                            <TextBlock Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Event Date" />
+                            <DatePicker Grid.Column="1" x:Name="PnlEventDate" Margin="2,20,2,2"/>
+                            <TextBlock Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Event Name/Description" />
+                            <TextBox Grid.Column="2" x:Name="PnlEventDesc" Margin="2,20,2,3" VerticalAlignment="Bottom" TextAlignment="Left" Style="{StaticResource FocusColor}"/>
+                            <TextBlock Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Lenght in mt" />
+                            <TextBox Grid.Column="3" x:Name="PnlLenght" Margin="2,4,2,4" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Style="{StaticResource FocusColor}" TextAlignment="Right" />
+                            <TextBlock Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Type" />
+                            <TextBox Grid.Column="4" x:Name="PnlType" Margin="2,4,2,4" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Style="{StaticResource FocusColor}" TextAlignment="Left" />
+                            <TextBlock Grid.Column="5" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Short Circuit" />
+                            <CheckBox Grid.Column="5" x:Name="PnlShortCircuit" Margin="2,4,2,4" HorizontalAlignment="Center" VerticalAlignment="Bottom" IsChecked="{Binding dgEventList.dgShortCircuit}"/>
+                        </Grid>
+                    </Border>
+                    <Grid Grid.Row="1" Margin="4,2,4,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="0.1*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.1*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="1" Margin="20,0,20,0">
+                            <TextBlock Text="Delete Event" />
+                        </Button>
+                        <Button Grid.Column="2" Margin="20,0,20,0">
+                            <TextBlock Text="New Event" />
+                        </Button>
+                        <Button Grid.Column="3" Margin="20,0,20,0" Click="Btn_Save_Form_Event_Click">
+                            <TextBlock Text="Save Data" />
+                        </Button>
+                        <Button Grid.Column="5" Margin="20,0,20,0">
+                            <TextBlock Text="Edit Settings" />
+                        </Button>
+                    </Grid>
+                    <DataGrid Name="dgEventList" Grid.Row="2" AutoGenerateColumns="False" CanUserAddRows="False"
+                              CanUserDeleteRows="False" CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserResizeRows="True" CanUserSortColumns="True" RowHeaderWidth="20"
+                              SelectionMode="Single" SelectionUnit="FullRow">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IDEvent}" Value="1">
+                                        <Setter Property="Background" Value="Red"></Setter>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IDEvent}" Value="2">
+                                        <Setter Property="Background" Value="Green"></Setter>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Width="30" Binding="{Binding IDEvent}" Header="Event ID" IsReadOnly="True" />
+                            <DataGridTextColumn Width="80" Binding="{Binding DateEvent, StringFormat=\{0:dd/MM/yy\}}" Header="Date" IsReadOnly="True" />
+                            <DataGridTextColumn Width="200" Binding="{Binding DescEvent}" Header="Description" IsReadOnly="True" />
+                            <DataGridTextColumn Width="50" Binding="{Binding LenghtEv}" Header="Lenght" IsReadOnly="True" />
+                            <DataGridTextColumn Width="100" Binding="{Binding TypeEv}" Header="Type" IsReadOnly="True" />
+                            <DataGridCheckBoxColumn Width="50" Binding="{Binding ShortCirc}" Header="Short" IsReadOnly="True" x:Name="dgShortCircuit"/>
+                            <DataGridTemplateColumn>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button CommandParameter="{Binding ElementName=dgEventList}" Width="60" Click="Btn_SavedgEvent_Click">Save</Button>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBox Grid.Row="3"
+                        MaxHeight="100"
+                        Margin="4,2,4,2"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        HorizontalContentAlignment="Left"
+                        VerticalContentAlignment="Top"
+                        Foreground="{Binding ResultTextBrush, UpdateSourceTrigger=PropertyChanged}"
+                        Text="{Binding ResultText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        TextWrapping="Wrap"
+                        VerticalScrollBarVisibility="Auto" />
+                </Grid>
+            </TabItem>
+            <TabItem Header="Runners">
+                <Grid Background="#FFE5E5E5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="1*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Border Background="GreenYellow" BorderBrush="Black" BorderThickness="1" CornerRadius="7" Margin="10,4,10,4">
+                        <Grid Grid.Row="0" Margin="4,8,4,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="0.1*"/>
+                                <ColumnDefinition Width="1.0*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                                <ColumnDefinition Width="0.8*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Margin="2,2,2,2" HorizontalAlignment="Center" VerticalAlignment="Top" Text="ID" />
+                            <TextBlock Grid.Column="0" x:Name="PnlIDRun" Margin="2,20,2,2" HorizontalAlignment="Center" />
+                            <TextBlock Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Surname Name" />
+                            <TextBox Grid.Column="1" x:Name="PnlName" Margin="2,20,2,2"/>
+                            <TextBlock Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Birth Year" />
+                            <TextBox Grid.Column="2" x:Name="PnlBirtYear" Margin="2,20,2,3" VerticalAlignment="Bottom" TextAlignment="Left" Style="{StaticResource FocusColor}"/>
+                            <TextBlock Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Sex" />
+                            <TextBox Grid.Column="3" x:Name="PnlSex" Margin="2,4,2,4" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Style="{StaticResource FocusColor}" TextAlignment="Right" />
+                            <TextBlock Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Email" />
+                            <TextBox Grid.Column="4" x:Name="PnlEmail" Margin="2,4,2,4" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Style="{StaticResource FocusColor}" TextAlignment="Left" />
+                        </Grid>
+                    </Border>
+                    <Grid Grid.Row="1" Margin="4,2,4,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="0.1*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.1*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="1" Margin="20,0,20,0">
+                            <TextBlock Text="Delete Runner" />
+                        </Button>
+                        <Button Grid.Column="2" Margin="20,0,20,0">
+                            <TextBlock Text="New Runner" />
+                        </Button>
+                        <Button Grid.Column="3" Margin="20,0,20,0" Click="Btn_Save_Form_Event_Click">
+                            <TextBlock Text="Save Runner" />
+                        </Button>
+                        <Button Grid.Column="5" Margin="20,0,20,0">
+                            <TextBlock Text="Edit Settings" />
+                        </Button>
+                    </Grid>
+                    <DataGrid x:Name="dgRrunners" Grid.Row="2" AutoGenerateColumns="False" EnableRowVirtualization="True" Grid.Column="0"
+                            MinHeight="100" MinWidth="0" Background="LawnGreen">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn x:Name="IDRunColumn" Binding="{Binding IDRun}" Header="IDRun" Width="0.1*" Visibility="Collapsed"/>
+                            <DataGridTextColumn x:Name="NameColumn" Binding="{Binding Name}" Header="Surname Name" Width="0.3*"/>
+                            <DataGridTextColumn x:Name="BirthYearColumn" Binding="{Binding BirthYear}" Header="Birth Date" Width="0.1*"/>
+                            <DataGridTextColumn x:Name="SexColumn" Binding="{Binding Sex}" Header="Sex" Width="0.1*"/>
+                            <DataGridTextColumn x:Name="EmailColumn" Binding="{Binding Email}" Header="Email" Width="0.02*"/>
+                            <DataGridTextColumn x:Name="EventDescColumn" Binding="{Binding DescEvent}" Header="Event Desc" Width="0.2*"/>
+                            <DataGridTextColumn x:Name="TypeEventColumn" Binding="{Binding TypeEv}" Header="Event Type" Width="0.3*"/>
+                            <DataGridCheckBoxColumn x:Name="SelEventColumn" Binding="{Binding SelEvent}" Header="Sel.Event" Width="0.05*">
+                                <DataGridCheckBoxColumn.CellStyle>
+                                    <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                                        <EventSetter Event="CheckBox.Checked" Handler="dgRrunnersOnChecked"/>
+                                        <EventSetter Event="CheckBox.Unchecked" Handler="dgRrunnersOnChecked"/>
+                                    </Style>
+                                </DataGridCheckBoxColumn.CellStyle>
+                            </DataGridCheckBoxColumn>
+                            <DataGridTextColumn x:Name="NumEvenColumn" Binding="{Binding RaceNumber}" Header="Number" Width="0.1*"/>
+                            <DataGridTextColumn x:Name="CatEvenColumn" Binding="{Binding Category_id}" Header="Category" Width="0.1*"/>
+                            <DataGridTextColumn x:Name="DesCatColumn" Binding="{Binding DesCat}" Header="DesCat" Width="0.2*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Categories">
+                <Grid Background="#FFE5E5E5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="1*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Border Background="Orange" BorderBrush="Black" BorderThickness="1" CornerRadius="7" Margin="10,4,10,4">
+                        <Grid Grid.Row="0" Margin="4,8,4,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="0.1*"/>
+                                <ColumnDefinition Width="1.0*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                                <ColumnDefinition Width="0.8*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                                <ColumnDefinition Width="0.1*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Margin="2,2,2,2" HorizontalAlignment="Center" VerticalAlignment="Top" Text="ID" />
+                            <TextBlock Grid.Column="0" x:Name="PnlIDCat" Margin="2,20,2,2" HorizontalAlignment="Center" />
+                            <TextBlock Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Category Description" />
+                            <TextBox Grid.Column="1" x:Name="PnlDesCat" Margin="2,20,2,2"/>
+                            <TextBlock Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Sex" />
+                            <TextBox Grid.Column="2" x:Name="PnlCatSex" Margin="2,20,2,3" VerticalAlignment="Bottom" TextAlignment="Left" Style="{StaticResource FocusColor}"/>
+                            <TextBlock Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Year From" />
+                            <TextBox Grid.Column="3" x:Name="PnlYearFrom" Margin="2,4,2,4" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Style="{StaticResource FocusColor}" TextAlignment="Right" />
+                            <TextBlock Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Year To" />
+                            <TextBox Grid.Column="4" x:Name="PnlYearTo" Margin="2,4,2,4" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Style="{StaticResource FocusColor}" TextAlignment="Left" />
+                            <TextBlock Grid.Column="5" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Short" />
+                            <TextBox Grid.Column="5" x:Name="PnlCatShort" Margin="2,4,2,4" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Style="{StaticResource FocusColor}" TextAlignment="Left" />
+                        </Grid>
+                    </Border>
+                    <Grid Grid.Row="1" Margin="4,2,4,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="0.1*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.1*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="1" Margin="20,0,20,0">
+                            <TextBlock Text="Delete Category" />
+                        </Button>
+                        <Button Grid.Column="2" Margin="20,0,20,0">
+                            <TextBlock Text="New Category" />
+                        </Button>
+                        <Button Grid.Column="3" Margin="20,0,20,0" Click="Btn_Save_Form_Event_Click">
+                            <TextBlock Text="Save Category" />
+                        </Button>
+                        <Button Grid.Column="5" Margin="20,0,20,0">
+                            <TextBlock Text="Edit Settings" />
+                        </Button>
+                    </Grid>
+                    <DataGrid x:Name="dgCategories" Grid.Row="2" AutoGenerateColumns="False" EnableRowVirtualization="True" MinHeight="100" MinWidth="0" Background="Orange" Grid.Column="0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn x:Name="cIDCatColumn" Binding="{Binding IDCat}" Header="IDCat" Width="*" Visibility="Collapsed"/>
+                            <DataGridTextColumn x:Name="cDesCat" Binding="{Binding DesCat}" Header="Desc Cat" Width="*" Visibility="Visible"/>
+                            <DataGridTextColumn x:Name="cSexCat" Binding="{Binding SexCat}" Header="Sex" Width="*" Visibility="Visible"/>
+                            <DataGridTextColumn x:Name="cYearFrom" Binding="{Binding YearFrom}" Header="Year From" Width="*" Visibility="Visible"/>
+                            <DataGridTextColumn x:Name="cYearTo" Binding="{Binding YearTo}" Header="Year To" Width="*" Visibility="Visible"/>
+                            <DataGridCheckBoxColumn x:Name="cShortCircCat" Binding="{Binding ShortCircCat}" Header="Short" Width="*" Visibility="Visible"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Race Number">
+                <Grid Background="#FFE5E5E5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="1*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Border Background="Red" BorderBrush="Black" BorderThickness="1" CornerRadius="7" Margin="10,4,10,4">
+                        <Grid Grid.Row="0" Margin="4,8,4,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="0.1*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                                <ColumnDefinition Width="0.6*"/>
+                                <ColumnDefinition Width="0.1*"/>
+                                <ColumnDefinition Width="0.1*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Margin="2,2,2,2" HorizontalAlignment="Center" VerticalAlignment="Top" Text="ID" />
+                            <TextBlock Grid.Column="0" Margin="2,20,2,2" HorizontalAlignment="Center" />
+                            <TextBlock Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Number" />
+                            <TextBox Grid.Column="1" x:Name="PnlNumber" Margin="2,20,2,2"/>
+                            <TextBlock Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Top" Text="EPC" />
+                            <TextBox Grid.Column="2" x:Name="PnlEPC" Margin="2,20,2,3" VerticalAlignment="Bottom" TextAlignment="Left" Style="{StaticResource FocusColor}"/>
+                            <TextBlock Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Used" />
+                            <CheckBox Grid.Column="3" x:Name="PnlUsed" Margin="2,4,2,4" HorizontalAlignment="Center" VerticalAlignment="Bottom" />
+                        </Grid>
+                    </Border>
+                    <Grid Grid.Row="1" Margin="4,2,4,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="0.1*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.2*"/>
+                            <ColumnDefinition Width="0.1*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="1" Margin="20,0,20,0">
+                            <TextBlock Text="Delete Number/EPC" />
+                        </Button>
+                        <Button Grid.Column="2" Margin="20,0,20,0">
+                            <TextBlock Text="New Number/EPC" />
+                        </Button>
+                        <Button Grid.Column="3" Margin="20,0,20,0" Click="Btn_Save_Form_Event_Click">
+                            <TextBlock Text="Save Number/EPC" />
+                        </Button>
+                        <Button Grid.Column="5" Margin="20,0,20,0">
+                            <TextBlock Text="Edit Settings" />
+                        </Button>
+                    </Grid>
+                    <DataGrid x:Name="dgRaceNumber" Grid.Row="2" AutoGenerateColumns="False" EnableRowVirtualization="True" MinHeight="100" MinWidth="0" Background="Red" Grid.Column="0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn x:Name="nNumberColumn" Binding="{Binding Number}" Header="Number" Width="100" Visibility="Visible"/>
+                            <DataGridTextColumn x:Name="nEPCColumn" Binding="{Binding EPC}" Header="EPC" Width="250" Visibility="Visible"/>
+                            <DataGridCheckBoxColumn x:Name="nInUseColumn" Binding="{Binding InUSe}" Header="Used" Width="100" Visibility="Visible"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Timing" IsSelected="True" Background="#FFF5F700">
+                <StackPanel DockPanel.Dock="Top" Orientation="Vertical">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="1*" />
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0" Margin="4,6,4,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="0.1*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                                <ColumnDefinition Width="0.2*"/>
+                                <ColumnDefinition Width="0.1*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="1" Margin="20,0,20,0">
+                                <TextBlock Text="Check Runner" />
+                            </Button>
+                            <Button Grid.Column="2" Margin="20,0,20,0">
+                                <TextBlock Text="Todo" />
+                            </Button>
+                            <Button Grid.Column="3" Margin="20,0,20,0" Click="Btn_Save_Form_Event_Click">
+                                <TextBlock Text="Todo" />
+                            </Button>
+                            <Button Grid.Column="5" Margin="20,0,20,0">
+                                <TextBlock Text="Edit Settings" />
+                            </Button>
+                        </Grid>
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.0*"/>
+                                <ColumnDefinition Width="0.02*"/>
+                                <ColumnDefinition Width="0.8*"/>
+                            </Grid.ColumnDefinitions>
+                            <DataGrid x:Name="dgEventRunner" AutoGenerateColumns="False" EnableRowVirtualization="False" Grid.Column="0"
+                                MinHeight="100" MinWidth="0" Background="Yellow">
+                                <DataGrid.Resources>
+                                    <Style TargetType="{x:Type DataGridColumnHeader}">
+                                        <Setter Property="HorizontalContentAlignment" Value="Center" />
+                                    </Style>
+                                </DataGrid.Resources>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn x:Name="numberColumn" Binding="{Binding RaceNumber}" Header="Number" Width="*" MaxWidth="60" MinWidth="40"/>
+                                    <DataGridTextColumn x:Name="nameColumn" Binding="{Binding Name}" Header="Surname Name" Width="*"/>
+                                    <DataGridTextColumn x:Name="birthColumn" Binding="{Binding BirthYear}" Header="Birth Date" Width="*"/>
+                                    <DataGridTextColumn x:Name="IDTimeColumn" Binding="{Binding IDTime}" Header="IDT" Width="*"/>
+                                    <DataGridTextColumn x:Name="EPCColumn" Binding="{Binding IDTime}" Header="EPC" Width="*"/>
+                                    <DataGridTextColumn x:Name="StartTimeColumn" Binding="{Binding StartTime}" Header="Start Time" Width="*"/>
+                                    <DataGridTextColumn x:Name="EndTimeColumn" Binding="{Binding EndTime}" Header="End Time" Width="*"/>
+                                    <DataGridTextColumn x:Name="ElapsedTimeColumn" Binding="{Binding ElapsedTime}" Header="Elapsed" Width="*"/>
+                                    <DataGridCheckBoxColumn x:Name="ModifiedColumn" Binding="{Binding Modified}" Header="Modified" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <DataGrid Name="dgTagResults" IsReadOnly="True" VirtualizingStackPanel.VirtualizationMode="Recycling"  ItemsSource="{Binding}" FontSize="12" Grid.Column="2"
+                            Background="White" AutoGenerateColumns="False"  CanUserSortColumns="True" CanUserReorderColumns="False" 
+                            LostFocus="dgTagResults_LostFocus" LoadingRow="dgTagResults_LoadingRow" MinHeight="100" MinWidth="0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn x:Name="serialNoColumn" Header="#" />
+                                    <DataGridTextColumn x:Name="epcColumn" Header="EPC"/>
+                                    <DataGridTextColumn x:Name="epcColumnInAscii" FontFamily="Consolas" Visibility="Collapsed" />
+                                    <DataGridTextColumn x:Name="epcColumnInReverseBase36" Visibility="Collapsed" />
+                                    <DataGridTextColumn x:Name="dataColumn" Visibility="Collapsed" />
+                                    <DataGridTextColumn x:Name="dataColumnInAscii" FontFamily="Consolas" Visibility="Collapsed" />
+                                    <DataGridTextColumn x:Name="dataSecureColumn" Visibility="Collapsed" />
+                                    <DataGridTextColumn x:Name="firstStampColumn" Binding="{Binding Mode=OneWay}"/>
+                                    <DataGridTextColumn x:Name="timeStampColumn" Binding="{Binding Mode=OneWay}"/>
+                                    <DataGridTextColumn x:Name="rssiColumn" Header="RSSI (dBm)"/>
+                                    <DataGridTextColumn x:Name="readCountColumn" Header="Read Count"/>
+                                    <DataGridTextColumn x:Name="tagTypeColumn" Visibility="Collapsed" />
+                                    <DataGridTextColumn x:Name="antennaColumn" Visibility="Collapsed"/>
+                                    <DataGridTextColumn x:Name="protocolColumn" Visibility="Collapsed"/>
+                                    <DataGridTextColumn x:Name="frequencyColumn" Visibility="Collapsed"/>
+                                    <DataGridTextColumn x:Name="phaseColumn" Visibility="Collapsed"/>
+                                    <DataGridTextColumn x:Name="GPIOColumn" Visibility="Collapsed" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Grid>
+                </StackPanel>
+            </TabItem>
+            <TabItem x:Name="tiRelayRace" Header="Relay Race" Visibility="Visible">
+                <Grid Background="#FFE5E5E5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="1*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Rankings">
+                <Grid Background="#FFE5E5E5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="1*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                </Grid>
+            </TabItem>
+        </TabControl>
     </DockPanel>
 </Window>

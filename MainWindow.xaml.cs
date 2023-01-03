@@ -3,12 +3,13 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data.OleDb;
+using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Management;
 using System.Media;
-using System.Security.Policy;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -21,19 +22,24 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ThingMagic;
+using System.Xml.Linq;
+using static ThingMagic.Gen2.Untraceable;
+using System.Data.SQLite;
+using static System.Net.Mime.MediaTypeNames;
+using System.Collections.ObjectModel;
+using System.Windows.Markup;
+using System.Management.Instrumentation;
 
 namespace RFIDTimer
 {
     /// <summary>
     /// Logica di interazione per MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
         #region Fields
 
-        /// <summary>
-        /// Define a reader variable
-        /// </summary>
+        // Define a reader variable
         Reader objReader = null;
 
         // Tag database object
@@ -41,9 +47,7 @@ namespace RFIDTimer
         TagReadRecordBindingList _tagList = new TagReadRecordBindingList();
         static Hashtable SeenTags = new Hashtable(); //controllo doppi EPG
 
-        /// <summary>
-        /// This flag is used to synchronize all "reader disconnection" exception messages
-        /// </summary>
+        // This flag is used to synchronize all "reader disconnection" exception messages
         static bool isReaderConnected = false;
         static bool isRaceStarted = false;
         private bool isAsyncReadGoingOn = false; // Cache async read progress state
@@ -52,9 +56,7 @@ namespace RFIDTimer
         bool enableUnique = false;
         bool enableFailData = false;
 
-        /// <summary>
-        /// Define a region variable
-        /// </summary>
+        // Define a region variable
         Reader.Region regionToSet = new Reader.Region();
 
         // To re read all the tags from the database and clear the memory
@@ -66,9 +68,7 @@ namespace RFIDTimer
         public static DateTime TimeStartRace;
         public static DateTime TimeStopRace;
 
-        /// <summary>
-        /// Delegates 
-        /// </summary>
+        // Delegates 
         delegate void del();
         private delegate void EmptyDelegate();
 
@@ -77,15 +77,21 @@ namespace RFIDTimer
         public int DEFUALTTIME = 500;
         public int TIMEFORCONDITION = 1000;
 
-        /// Stores Detected comport
-        /// </summary>
+        // Stores Detected comport
         List<string> masterPortList = new List<string>();
 
         // sounds
         SoundPlayer beepOK = new SoundPlayer("beep-ok.wav");
         SoundPlayer beepWrong = new SoundPlayer("beep-ok.wav");
 
+        //private string CNS_Access = "Provider=Microsoft.ACE.OLEDB.12.0; Data Source=" + AppDomain.CurrentDomain.BaseDirectory + "\\Crono.accdb;Persist Security Info=True;";
+        //public string CNS_SQLite = "Data Source=" + AppDomain.CurrentDomain.BaseDirectory + "\\Data\\RFIDTimer.db;Version=3;";
+
         public static MainWindow mainw = null;
+
+        List<EventModel> eventsDetails = new List<EventModel>();
+
+        public event PropertyChangedEventHandler PropertyChanged;
         #endregion
 
         public MainWindow()
@@ -112,19 +118,19 @@ namespace RFIDTimer
                 // So if we are using lots of graphics and images, application will eventually take a 
                 // lots CPU utilization because of these frame rates. Hence reducing the frame-rates to 
                 // 10 frames per second
-                Timeline.DesiredFrameRateProperty.OverrideMetadata(typeof(Timeline),new FrameworkPropertyMetadata { DefaultValue = 10 });
+                Timeline.DesiredFrameRateProperty.OverrideMetadata(typeof(Timeline), new FrameworkPropertyMetadata { DefaultValue = 10 });
 
                 InitializeComponent();
                 GenerateColmnsForDataGrid();
                 InitializeReaderUriBox();
                 mainw = this;
-
+                
                 dispatchtimer = new DispatcherTimer();
                 dispatchtimer.Interval = TimeSpan.FromMilliseconds(50);
                 dispatchtimer.Tick += new EventHandler(dispatchtimer_Tick);
 
                 dtRaceTimeClock.Tick += new EventHandler(RaceTime_Tick);
-                dtRaceTimeClock.Interval = new TimeSpan(0, 0, 0, 0, 10); 
+                dtRaceTimeClock.Interval = new TimeSpan(0, 0, 0, 0, 10);
 
             }
             catch (Exception bonjEX)
@@ -172,15 +178,15 @@ namespace RFIDTimer
                     switch (MessageBox.Show(msg, "RFIDTimer", MessageBoxButton.OKCancel, MessageBoxImage.Question))
                     {
                         case MessageBoxResult.OK:
-                            {
-                                btnRead_Click(sender, e);
-                                closeConnectURA(sender, e);
-                                break;
-                            }
+                        {
+                            btnRead_Click(sender, e);
+                            closeConnectURA(sender, e);
+                            break;
+                        }
                         case MessageBoxResult.Cancel:
-                            {
-                                break;
-                            }
+                        {
+                            break;
+                        }
                     }
                 }
                 else
@@ -241,7 +247,6 @@ namespace RFIDTimer
                     imgReaderStatus.Source = new BitmapImage(new Uri(@"..\Icons\LedGreen.png", UriKind.RelativeOrAbsolute));
                     imgbtnConnect.Source = new BitmapImage(new Uri(@"..\Icons\switch-on.png", UriKind.RelativeOrAbsolute));
                     lblReaderUri.Content = objReader.ParamGet("/reader/version/model");
-
 
                     // Create a simplereadplan which uses the antenna list created above
                     int[] antennaList = { 1 };
@@ -369,7 +374,6 @@ namespace RFIDTimer
 
         private void btnRead_Click(object sender, RoutedEventArgs e)
         {
-            
             if (isReaderConnected)
             {
                 if (isAsyncReadGoingOn)
@@ -431,10 +435,10 @@ namespace RFIDTimer
                         {
                             SeenTags.Add(epc, null);
                             tagdb.Add(e.TagReadData);
+                            insertDBTime(epc, DateTime.Now, DateTime.Now - MainWindow.TimeStartRace);
                             dgTagResults.Items.Refresh();
                             //TextBox1.AppendText(DateTime.Now.ToString("G") + " Background read: " + e.TagReadData + Environment.NewLine);
                             beepOK.Play();
-
                         }
                         else
                         {
@@ -510,20 +514,6 @@ namespace RFIDTimer
                 default:
                     r.Destroy();
                     break;
-            }
-        }
-
-        private void dgTagResults_LoadingRow(object sender, DataGridRowEventArgs e)
-        {
-            //TextBox1.AppendText(DateTime.Now.ToString("G") + " info: dgTagResults_LoadingRow" + Environment.NewLine);
-            try
-            {
-
-            }
-            catch (Exception)
-            {
-
-                throw;
             }
         }
 
@@ -655,9 +645,9 @@ namespace RFIDTimer
                     Environment.Exit(1);
                 }
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
-                
+
             };
         }
 
@@ -671,7 +661,7 @@ namespace RFIDTimer
                 TimeStopRace = DateTime.Now;
                 imgStartRace.Source = new BitmapImage(new Uri(@"..\Icons\start_flag_yellow.png", UriKind.RelativeOrAbsolute));
                 lblStartRace.Content = "Start Race";
-                isRaceStarted= false;
+                isRaceStarted = false;
                 btnRead_Click(sender, e);
             }
             else
@@ -706,34 +696,34 @@ namespace RFIDTimer
                 int columnCount = dgTagResults.Columns.Count;
                 string msg1;
                 if (columnCount > 0)
-                { msg1 = "Do you want to Reset Time and delete the Race result?"; }
+                    { msg1 = "Do you want to Reset Time and delete the Race result?"; }
                 else
-                { msg1 = "Do you want to Reset Time?"; }
-                                
+                    { msg1 = "Do you want to Reset Time?"; }
+
                 switch (MessageBox.Show(msg1, "Universal Reader Assistant Message",
                     MessageBoxButton.OKCancel, MessageBoxImage.Question))
                 {
                     case MessageBoxResult.OK:
-                    {
-                        //Reset Chrono Racerace
-                        TimeStopRace = new DateTime();
-                        TimeStartRace = new DateTime();
-                        raceTimeClock.Reset();
-                        ClearReads(); 
-                        lblRaceTimehh.Content = "00";
-                        lblRaceTimemm.Content = "00";
-                        lblRaceTimess.Content = "00";
-                        lblRaceTimedc.Content = "00";
-                        lblRaceTimehh.Foreground = Brushes.Red;
-                        lblRaceTimemm.Foreground = Brushes.Red;
-                        lblRaceTimess.Foreground = Brushes.Red;
-                        lblRaceTimedc.Foreground = Brushes.Red;
-                        break;
-                    }
+                        {
+                            //Reset Chrono Racerace
+                            TimeStopRace = new DateTime();
+                            TimeStartRace = new DateTime();
+                            raceTimeClock.Reset();
+                            ClearReads();
+                            lblRaceTimehh.Content = "00";
+                            lblRaceTimemm.Content = "00";
+                            lblRaceTimess.Content = "00";
+                            lblRaceTimedc.Content = "00";
+                            lblRaceTimehh.Foreground = Brushes.Red;
+                            lblRaceTimemm.Foreground = Brushes.Red;
+                            lblRaceTimess.Foreground = Brushes.Red;
+                            lblRaceTimedc.Foreground = Brushes.Red;
+                            break;
+                        }
                     case MessageBoxResult.Cancel:
-                    {
-                        break;
-                    }
+                        {
+                            break;
+                        }
                 }
 
             }
@@ -743,7 +733,7 @@ namespace RFIDTimer
         {
             TimeSpan ts = raceTimeClock.Elapsed;
             //string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}", ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds / 10);
-            lblRaceTimehh.Content = String.Format("{0:00}",ts.Hours);
+            lblRaceTimehh.Content = String.Format("{0:00}", ts.Hours);
             lblRaceTimemm.Content = String.Format("{0:00}", ts.Minutes);
             lblRaceTimess.Content = String.Format("{0:00}", ts.Seconds);
             lblRaceTimedc.Content = String.Format("{0:00}", ts.Milliseconds / 10);
@@ -878,15 +868,12 @@ namespace RFIDTimer
             try
             {
                 Mouse.SetCursor(Cursors.Wait);
-                //if ((bool)rdbtnLocalConnection.IsChecked)
+                List<string> portNames = GetComPortNames();
+                cmbReaderAddr.ItemsSource = "";
+                cmbReaderAddr.ItemsSource = portNames;
+                if (portNames.Count > 0)
                 {
-                    List<string> portNames = GetComPortNames();
-                    cmbReaderAddr.ItemsSource = "";
-                    cmbReaderAddr.ItemsSource = portNames;
-                    if (portNames.Count > 0)
-                    {
-                        cmbReaderAddr.Text = portNames[0];
-                    }
+                    cmbReaderAddr.Text = portNames[0];
                 }
                 Mouse.SetCursor(Cursors.Arrow);
             }
@@ -1067,12 +1054,13 @@ namespace RFIDTimer
                 return false;
             }
         }
-        
+
         /// <summary>
         /// Generate columns for datagrid
         /// </summary>
         public void GenerateColmnsForDataGrid()
         {
+            // dgTagResults
             dgTagResults.AutoGenerateColumns = false;
             serialNoColumn.Binding = new Binding("SerialNumber");
             serialNoColumn.Header = "#";
@@ -1132,8 +1120,258 @@ namespace RFIDTimer
             tagTypeColumn.Header = "Tag Type";
             tagTypeColumn.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
             dgTagResults.ItemsSource = TagList;
+
+            StartTimeColumn.Binding.StringFormat = "{0:HH:mm:ss.fff}";
+            EndTimeColumn.Binding.StringFormat = "{0:HH:mm:ss.fff}";
+            ElapsedTimeColumn.Binding.StringFormat = "{0:HH:mm:ss.fff}";
+
+            //refreshEventRunner(); //viene chiamato dalla combobox e da insertDBTime()
+            refreshEvents();
+            refreshRunners();
+            refreshCategories();
+            refreshRaceNumber();
         }
 
+        public void refreshEvents()
+        {
+            try
+            {
+                DataTable dtEvents = DBData.GetAllEvent();
+                dgEventList.ItemsSource = dtEvents.AsDataView();
+                // fill ComboBox
+                eventsDetails = Utilities.ConvertDataTabletoList<EventModel>(dtEvents);
+                cmbRaceSelect.ItemsSource = eventsDetails;
 
+                // fill DataGrid
+                dgEventList.SelectionChanged += (s, e) =>
+                {
+                    var item = dgEventList.SelectedItem as DataRowView;
+                    if (null == item) return;
+                    try
+                    {
+                        PnlIDEvent.Text = item.Row[0].ToString();
+                        PnlEventDate.SelectedDate = (DateTime)item.Row[1];
+                        PnlEventDesc.Text = item.Row[2].ToString();
+                        PnlLenght.Text = item.Row[3].ToString();
+                        PnlType.Text = item.Row[4].ToString();
+                        PnlShortCircuit.IsChecked = (Boolean)item.Row[5];
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void cmbRaceSelect_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                tbxeventDesc.Text = ((sender as ComboBox).SelectedItem as EventModel).DescEvent.ToString();
+                lblRaceTimelbl.Content= tbxeventDesc.Text;
+                tbxeventLenght.Text = ((sender as ComboBox).SelectedItem as EventModel).LenghtEv.ToString();
+                tbxEventType.Text = ((sender as ComboBox).SelectedItem as EventModel).TypeEv.ToString();
+                tbxEventShort.IsChecked = ((sender as ComboBox).SelectedItem as EventModel).ShortCirc;
+
+                //if ((Boolean)((sender as ComboBox).SelectedItem as EventModel).ShortCirc)
+                if (((sender as ComboBox).SelectedItem as EventModel).TypeEv.ToString() == "Staffetta")
+                {
+                        tiRelayRace.Visibility = Visibility.Visible;
+                }
+                else 
+                { 
+                    tiRelayRace.Visibility = Visibility.Collapsed;
+                }
+            }
+            catch (Exception ex)
+            {
+                //MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            refreshEventRunner();
+            refreshRunners();
+
+        }
+
+        private void dgRrunnersOnChecked(object sender, RoutedEventArgs e)
+        {
+            var ch = sender as CheckBox;
+            var row = dgRrunners.ItemContainerGenerator.ContainerFromItem(ch) as DataGridRow;
+            //SelEventColumn
+            CheckBox checkBox = (CheckBox)e.OriginalSource;
+            bool ischecked = checkBox.IsChecked;
+            if (ischecked)
+            {
+                row.Background = Brushes.Gray;
+            }
+            else
+            {
+                row.Background = Brushes.White;
+            }
+            //MessageBox.Show("okkkkkk", "Info", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        public void refreshEventRunner()
+        {
+            try
+            {
+                var query = @"select R.IDRun,R.Name,R.BirthYear,R.Sex,R.Email,E.RaceNumber,T.IDTime,T.EPC,T.StartTime,T.EndTime,T.ElapsedTime,T.Modified
+                              from Runners R
+                              inner join EventRunner E on R.IDRun = E.Runner_id 
+                              left join Timings T on E.Event_id=T.Event_id and E.Runner_id = T.Runner_id 
+                              WHERE E.Event_id=@Event_id";
+                var args = new Dictionary<string, object>
+                {
+                    {"@Event_id", cmbRaceSelect.SelectedValue}
+                };
+                DataTable dt = DBData.ExecuteRead(query, args);
+                dgEventRunner.ItemsSource = dt.AsDataView();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        public void refreshRunners()
+        {
+            try
+            {
+                int idevent = 1;
+                try
+                {
+                    idevent = Int32.Parse(cmbRaceSelect.SelectedValue.ToString());
+                }
+                catch (FormatException)
+                {
+                    
+                }
+                DataTable dtRunners = DBData.GetAllRunnerByEventId(idevent);
+                dgRrunners.ItemsSource = dtRunners.AsDataView();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        public void refreshCategories()
+        {
+            try
+            {
+                var query = @"SELECT * from Categories";
+                var args = new Dictionary<string, object>
+                {
+                    {"@", null}
+                };
+                DataTable dt = DBData.ExecuteRead(query, args);
+                dgCategories.ItemsSource = dt.AsDataView();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        public void refreshRaceNumber()
+        {
+            try
+            {
+                var query = @"SELECT * from NumRaceEpc";
+                var args = new Dictionary<string, object>
+                {
+                    {"@", null}
+                };
+                DataTable dt = DBData.ExecuteRead(query, args);
+                dgRaceNumber.ItemsSource = dt.AsDataView();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        //da rivedere
+        public void insertDBTime(String epc, DateTime timeNow, TimeSpan difftime) 
+        {
+            //TODO
+            //FirstTimeStamp
+            //DateTime localDate = DateTime.Now;
+            //TimeSpan difftime = (RawRead.Time - MainWindow.TimeStartRace);
+
+            try
+            {
+                string SqlString = @"INSERT INTO Tempi(IDTempo, TempoPartenza, TempoArrivo, TempoTrascorso, Manifestazione) SELECT Pettorale,@TimeStart,@TimeEnd,@TimeElapsed," + cmbRaceSelect.SelectedValue.ToString() + " as Manifestazione  FROM Pettorali WHERE Pettorali.EPC = '" + epc + "'";
+                using (OleDbConnection cn = new OleDbConnection())
+                {
+                    using (OleDbCommand cmd = new OleDbCommand(SqlString, cn))
+                    {
+                        cmd.CommandType = CommandType.Text;
+                        //cmd.Parameters.Add("@TimeStart", TimeStartRace.ToOADate());
+                        //cmd.Parameters.Add("@TimeEnd", timeNow.ToOADate());
+                        //cmd.Parameters.AddWithValue("@TimeElapsed", difftime.TotalMilliseconds);
+                        //cmd.Parameters.AddWithValue("@Manifestazione", cmbRaceSelect.SelectedValue.ToString());
+                        //cmd.Parameters.AddWithValue("@epc", epc);
+                        cn.Open();
+                        int xresult = cmd.ExecuteNonQuery();
+                        if (xresult != 1) MessageBox.Show(xresult.ToString());
+                        cn.Close();
+                        refreshEventRunner();
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void dgTagResults_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            //TextBox1.AppendText(DateTime.Now.ToString("G") + " info: dgTagResults_LoadingRow" + Environment.NewLine);
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            //System.Windows.Data.CollectionViewSource dettaglioEventiViewSource = ((System.Windows.Data.CollectionViewSource)(this.FindResource("dettaglioEventiViewSource")));
+            //dettaglioEventiViewSource.View.MoveCurrentToFirst();
+            // Carica i dati nella tabella Iscritti. Se necessario, è possibile modificare questo codice.
+            //System.Windows.Data.CollectionViewSource iscrittiViewSource = ((System.Windows.Data.CollectionViewSource)(this.FindResource("iscrittiViewSource")));
+            //iscrittiViewSource.View.MoveCurrentToFirst();
+        }
+
+        private void Btn_SavedgEvent_Click(object sender, RoutedEventArgs e)
+        {
+            //TODO
+            DataGrid datagrid = ((Button)sender).CommandParameter as DataGrid;
+            var selectedRow = datagrid.SelectedItem;
+            var selectedIndex = datagrid.SelectedIndex;
+
+        }
+
+        private void Btn_Save_Form_Event_Click(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(PnlIDEvent.Text))
+            {
+                var events = new EventModel
+                {
+                    IDEvent = Convert.ToInt32(PnlIDEvent.Text),
+                    DateEvent = (DateTime)PnlEventDate.SelectedDate,
+                    DescEvent = Convert.ToString(PnlEventDesc.Text),
+                    LenghtEv = Convert.ToInt32(PnlLenght.Text),
+                    TypeEv = Convert.ToString(PnlType.Text),
+                    ShortCirc = (Boolean)PnlShortCircuit.IsChecked
+                };
+                DBData.EditEvent(events);
+                refreshEvents();
+            } else
+            {
+                MessageBox.Show("Select an Event first", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 }
